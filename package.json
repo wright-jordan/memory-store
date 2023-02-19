@@ -1,5 +1,5 @@
 {
-  "name": "",
+  "name": "memory-store",
   "version": "0.1.0",
   "main": "dist/index.js",
   "scripts": {
@@ -9,6 +9,7 @@
   "devDependencies": {
     "@types/node": "^18.11.7",
     "prettier": "2.7.1",
+    "session-middleware": "github:wright-jordan/session-middleware",
     "typescript": "^4.8.4"
   }
 }
