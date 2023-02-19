@@ -7,12 +7,15 @@ export class MemoryStore {
             return { data: null, err: null };
         }
         const now = Math.floor(Date.now() / 1000);
-        if (now > data.idleDeadline || now > data.absoluteDeadline) {
+        if (now > data.absoluteDeadline) {
             this.#m.delete(id);
             return { data: null, err: null };
         }
         data.idleDeadline = now + ttl;
         this.#m.set(id, data);
+        setTimeout(async () => {
+            this.#m.delete(id);
+        }, ttl * 1000);
         return { data, err: null };
     }
     async set(id, data, ttl) {
