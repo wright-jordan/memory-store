@@ -12,44 +12,64 @@ declare module "session-middleware" {
   }
 }
 
-export class MemoryStore implements SessionStore {
-  #m = new Map<string, SessionData>();
-  constructor() {}
-  async get(
-    id: string,
-    ttl: number
-  ): Promise<{ data: SessionData | null; err: StoreGetError | null }> {
-    const data = this.#m.get(id);
-    if (!data) {
-      return { data: null, err: null };
-    }
-    const now = Math.floor(Date.now() / 1000);
-    if (now > data.idleDeadline || now > data.absoluteDeadline) {
-      this.#m.delete(id);
-      return { data: null, err: null };
-    }
-    data.idleDeadline = now + ttl;
-    this.#m.set(id, data);
-    return { data, err: null };
+interface MemoryStore extends SessionStore {
+  all(): Promise<{ [id: string]: SessionData }>;
+  _m: Map<string, SessionData>;
+}
+
+async function _get(
+  this: MemoryStore,
+  id: string,
+  ttl: number
+): Promise<{ data: SessionData | null; err: StoreGetError | null }> {
+  const data = this._m.get(id);
+  if (!data) {
+    return { data: null, err: null };
   }
-  async set(
-    id: string,
-    data: SessionData,
-    ttl: number
-  ): Promise<StoreSetError | null> {
-    data.idleDeadline = Math.floor(Date.now() / 1000) + ttl;
-    this.#m.set(id, data);
-    return null;
+  const now = Math.floor(Date.now() / 1000);
+  if (now > data.idleDeadline || now > data.absoluteDeadline) {
+    this._m.delete(id);
+    return { data: null, err: null };
   }
-  async delete(id: string): Promise<StoreDeleteError | null> {
-    this.#m.delete(id);
-    return null;
+  data.idleDeadline = now + ttl;
+  this._m.set(id, data);
+  return { data, err: null };
+}
+
+async function _set(
+  this: MemoryStore,
+  id: string,
+  data: SessionData,
+  ttl: number
+): Promise<StoreSetError | null> {
+  data.idleDeadline = Math.floor(Date.now() / 1000) + ttl;
+  this._m.set(id, data);
+  return null;
+}
+
+async function _delete(
+  this: MemoryStore,
+  id: string
+): Promise<StoreDeleteError | null> {
+  this._m.delete(id);
+  return null;
+}
+
+async function _all(this: MemoryStore) {
+  const cache: { [id: string]: SessionData } = {};
+  for (const [id, data] of this._m) {
+    cache[id] = structuredClone(data);
   }
-  async all() {
-    const cache: { [id: string]: SessionData } = {};
-    for (const [id, data] of this.#m) {
-      cache[id] = structuredClone(data);
-    }
-    return cache;
-  }
+  return cache;
+}
+
+export function Store(): MemoryStore {
+  const _m = new Map<string, SessionData>();
+  return {
+    _m,
+    get: _get,
+    set: _set,
+    delete: _delete,
+    all: _all,
+  };
 }
